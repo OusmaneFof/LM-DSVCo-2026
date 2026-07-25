@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
-st.set_page_config(page_title="Rapports DHIS2", layout="wide")
-st.title("📊 Rapports Épidémiologiques DHIS2")
-st.write("Guinée - Dashboard Interactif")
+st.set_page_config(page_title="Tableau de Bord DSVCo S1 2026", layout="wide")
+st.title("📊 Tableau de Bord DSVCo S1 2026")
+st.write("Surveillance Sanitaire - Guinée")
 
 uploaded_file = st.file_uploader("Téléchargez votre fichier DHIS2", type=['xls', 'xlsx'])
 
@@ -33,7 +32,7 @@ if uploaded_file:
         total_cholera = int(df_simple['Choléra'].sum())
         total_deces = int(df_simple['Décès'].sum())
         
-        st.success("✅ Fichier chargé !")
+        st.success("✅ Fichier chargé avec succès !")
         
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("📊 Paludisme", f"{total_palu:,}")
@@ -58,7 +57,7 @@ if uploaded_file:
                 name='Cas'
             ))
             fig1.update_layout(
-                title="Top 15 Établissements",
+                title="Top 15 Établissements - Paludisme",
                 xaxis_title="Nombre de cas",
                 yaxis_title="Établissement",
                 height=500,
@@ -88,8 +87,8 @@ if uploaded_file:
         with col1:
             top10_test = df_simple.nlargest(10, 'Testés')
             if len(top10_test) > 0:
-                taux = (top10_test['Paludisme'] / top10_test['Testés'] * 100).values
-                etab_short = [e[:15] + "..." if len(e) > 15 else e for e in top10_test['Établissement'].values]
+                taux = (top10_test['Paludisme'] / (top10_test['Testés'] + 1) * 100).values
+                etab_short = [e[:20] + "..." if len(str(e)) > 20 else str(e) for e in top10_test['Établissement'].values]
                 fig3 = go.Figure()
                 fig3.add_trace(go.Scatter(
                     x=etab_short,
