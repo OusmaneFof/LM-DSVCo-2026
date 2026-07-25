@@ -1,170 +1,132 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime
+import time
 
 st.set_page_config(page_title="Tableau de Bord DSVCo S1 2026", layout="wide")
+
 st.title("📊 Tableau de Bord DSVCo S1 2026")
-st.write("Suivi Interactif des Performances - Semestre 1 2026")
+st.markdown("**Suivi EN TEMPS RÉEL depuis Google Sheets**")
 
-uploaded_file = st.file_uploader("Téléchargez votre fichier de suivi", type=['xlsx', 'xls'])
+# Sidebar
+with st.sidebar:
+    st.header("⚙️ Configuration")
+    
+    sheet_url = st.text_input(
+        "Lien du Google Sheet",
+        placeholder="https://docs.google.com/spreadsheets/d/...",
+        help="Partagé en 'N'importe qui avec le lien'"
+    )
+    
+    auto_refresh = st.checkbox("🔄 Auto-refresh (30 sec)", value=True)
+    
+    if st.button("🔄 Rafraîchir"):
+        st.rerun()
+    
+    st.metric("⏰ Mise à jour", "EN TEMPS RÉEL")
 
-if uploaded_file:
+# Charger Google Sheets
+if sheet_url:
     try:
-        # Lire les sheets
-        df_activites = pd.read_excel(uploaded_file, sheet_name='Tableau de bord S1')
-        df_calendrier = pd.read_excel(uploaded_file, sheet_name='Calendrier Échéances S1')
-        df_suivi = pd.read_excel(uploaded_file, sheet_name='Suivi Mensuel S1')
+        # Extraire l'ID du sheet
+        sheet_id = sheet_url.split('/d/')[1].split('/')[0]
         
-        st.success("✅ Fichier chargé avec succès !")
+        # Construire l'URL d'export CSV (Sheet 1 = gid=0)
+        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
         
-        # SECTION 1 : MÉTRIQUES CLÉS
-        st.subheader("📈 Indicateurs Clés")
+        # Lire le CSV
+        df = pd.read_csv(csv_url)
         
-        # Calculer le taux de réalisation
-        try:
-            df_suivi_clean = df_suivi.iloc[2:14].copy()
-            df_suivi_clean.columns = ['N°', 'Livrable', 'Cible', 'Cumul', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Réalisation']
-            
-            # Convertir les colonnes en numérique
-            for col in ['Cumul', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']:
-                df_suivi_clean[col] = pd.to_numeric(df_suivi_clean[col], errors='coerce').fillna(0)
-            
-            cumul_total = df_suivi_clean['Cumul'].sum()
-            cible_total = df_suivi_clean['Cible'].sum()
-            taux_realisation = (cumul_total / cible_total * 100) if cible_total > 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("📊 Cible S1", f"{int(cible_total)}", "livrables")
-            col2.metric("✅ Réalisé", f"{int(cumul_total)}", "livrables")
-            col3.metric("📈 Taux Réalisation", f"{taux_realisation:.1f}%")
-            col4.metric("⏳ Échéances", f"{len(df_calendrier.iloc[2:15])}", "prévues")
-        except:
-            st.warning("Erreur lors du calcul des métriques")
+        st.success("✅ Connecté à Google Sheets - Données EN DIRECT !")
         
-        # SECTION 2 : GRAPHIQUES
-        st.divider()
-        st.subheader("📊 Analyses Détaillées")
+        # MÉTRIQUES
+        st.markdown("### 📈 Indicateurs Clés")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3, col4 = st.columns(4)
         
-        # Graphique 1 : Suivi mensuel
+        cible_total = df['Cible'].sum()
+        cumul_total = df['Cumul'].sum()
+        taux = (cumul_total / cible_total * 100) if cible_total > 0 else 0
+        
         with col1:
-            try:
-                mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
-                valeurs = [df_suivi_clean[m].sum() for m in mois]
-                
-                fig1 = go.Figure()
-                fig1.add_trace(go.Bar(
-                    x=mois,
-                    y=valeurs,
-                    marker=dict(color='#1f77b4'),
-                    name='Réalisations'
-                ))
-                fig1.update_layout(
-                    title="Progression Mensuelle des Livrables",
-                    xaxis_title="Mois",
-                    yaxis_title="Nombre de livrables",
-                    height=400,
-                    template='plotly_white'
-                )
-                st.plotly_chart(fig1, use_container_width=True)
-            except:
-                st.error("Erreur graphique 1")
-        
-        # Graphique 2 : Réalisation par livrable
+            st.metric("🎯 Cible", f"{int(cible_total)}")
         with col2:
-            try:
-                fig2 = go.Figure()
-                fig2.add_trace(go.Bar(
-                    y=df_suivi_clean['Livrable'].head(10),
-                    x=df_suivi_clean['Cumul'].head(10),
-                    orientation='h',
-                    marker=dict(color='#2ca02c'),
-                    name='Réalisé'
-                ))
-                fig2.update_layout(
-                    title="Top 10 Livrables Réalisés",
-                    xaxis_title="Nombre",
-                    height=400,
-                    template='plotly_white'
-                )
-                st.plotly_chart(fig2, use_container_width=True)
-            except:
-                st.error("Erreur graphique 2")
+            st.metric("✅ Réalisé", f"{int(cumul_total)}")
+        with col3:
+            st.metric("📊 Taux", f"{taux:.1f}%")
+        with col4:
+            st.metric("🔄 Source", "Google Sheets")
         
-        col1, col2 = st.columns(2)
+        # GRAPHIQUE 1 : Progression mensuelle
+        st.markdown("### 📈 Progression Mensuelle")
         
-        # Graphique 3 : Jauge de réalisation
-        with col1:
-            fig3 = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
-                value=taux_realisation,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Taux Réalisation Global"},
-                delta={'reference': 50},
-                gauge={
-                    'axis': {'range': [0, 100]},
-                    'bar': {'color': "#1f77b4"},
-                    'steps': [
-                        {'range': [0, 33], 'color': "#ffcccc"},
-                        {'range': [33, 66], 'color': "#ffffcc"},
-                        {'range': [66, 100], 'color': "#ccffcc"}
-                    ],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.75,
-                        'value': 90
-                    }
-                }
-            ))
-            fig3.update_layout(height=400)
-            st.plotly_chart(fig3, use_container_width=True)
+        mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
+        valeurs = [df[m].sum() for m in mois]
         
-        # Graphique 4 : Statut des échéances
-        with col2:
-            try:
-                df_cal_clean = df_calendrier.iloc[2:15].copy()
-                statuts = df_cal_clean.iloc[:, 4].value_counts()
-                
-                fig4 = go.Figure(data=[go.Pie(
-                    labels=statuts.index,
-                    values=statuts.values,
-                    marker=dict(colors=['#ff7f0e', '#2ca02c', '#d62728']),
-                    textinfo='label+percent'
-                )])
-                fig4.update_layout(
-                    title="Statut des Échéances S1",
-                    height=400
-                )
-                st.plotly_chart(fig4, use_container_width=True)
-            except:
-                st.warning("Graphique statut non disponible")
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(
+            x=mois,
+            y=valeurs,
+            marker=dict(color=valeurs, colorscale='Viridis', line=dict(color='darkblue', width=2)),
+            text=valeurs,
+            textposition='auto'
+        ))
+        fig1.update_layout(height=400, template='plotly_white', hovermode='x')
+        st.plotly_chart(fig1, use_container_width=True)
         
-        # SECTION 3 : TABLEAU CALENDRIER
-        st.divider()
-        st.subheader("📅 Calendrier des Échéances")
+        # GRAPHIQUE 2 : Top livrables
+        st.markdown("### 🏆 Top Livrables")
         
-        try:
-            df_cal_display = df_calendrier.iloc[2:15].copy()
-            df_cal_display.columns = ['Mois', 'Échéance', 'Livrable', 'Responsable', 'Statut', 'Observations']
-            st.dataframe(df_cal_display, use_container_width=True, hide_index=True)
-        except:
-            st.error("Impossible d'afficher le calendrier")
+        fig2 = go.Figure()
+        fig2.add_trace(go.Bar(
+            y=df['Livrable'],
+            x=df['Cumul'],
+            orientation='h',
+            marker=dict(color=df['Cumul'], colorscale='Reds', line=dict(color='darkred', width=2)),
+            text=df['Cumul'],
+            textposition='auto'
+        ))
+        fig2.update_layout(height=400, template='plotly_white')
+        st.plotly_chart(fig2, use_container_width=True)
         
-        # SECTION 4 : TABLEAU SUIVI
-        st.divider()
-        st.subheader("📋 Suivi des Livrables")
+        # JAUGE
+        st.markdown("### 🎯 Taux Réalisation Global")
         
-        try:
-            st.dataframe(df_suivi_clean, use_container_width=True, hide_index=True)
-        except:
-            st.error("Impossible d'afficher le suivi")
+        fig3 = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=taux,
+            title={'text': "Progression"},
+            delta={'reference': 50},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "#667eea"},
+                'steps': [
+                    {'range': [0, 33], 'color': "#ffcccc"},
+                    {'range': [33, 66], 'color': "#ffffcc"},
+                    {'range': [66, 100], 'color': "#ccffcc"}
+                ]
+            }
+        ))
+        fig3.update_layout(height=400)
+        st.plotly_chart(fig3, use_container_width=True)
+        
+        # TABLEAU
+        st.markdown("### 📋 Tableau Détaillé")
+        
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # AUTO-REFRESH
+        if auto_refresh:
+            st.info("🔄 Auto-refresh activé - Mise à jour toutes les 30 secondes")
+            time.sleep(30)
+            st.rerun()
         
     except Exception as e:
         st.error(f"❌ Erreur : {str(e)}")
-        st.info("Assurez-vous que le fichier contient les sheets : 'Tableau de bord S1', 'Calendrier Échéances S1', 'Suivi Mensuel S1'")
+        st.info("Vérifiez que :")
+        st.write("1. Le lien est complet")
+        st.write("2. Le sheet est partagé en 'N'importe qui avec le lien'")
+        st.write("3. Les colonnes s'appellent : Livrable, Cible, Jan, Fév, Mar, Avr, Mai, Juin, Cumul")
 
 else:
-    st.info("👈 Téléchargez votre fichier Tableau_de_Bord_DSVCo_S1_2026_OF.xlsx")
+    st.info("👈 Entrez le lien de votre Google Sheet pour commencer")
