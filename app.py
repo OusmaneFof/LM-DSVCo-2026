@@ -3,11 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 
-st.set_page_config(
-    page_title="DSVCo — Tableau de Bord de Suivi S1 2026",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="DSVCo — Tableau de Bord de Suivi S1 2026", layout="wide", initial_sidebar_state="collapsed")
 
 COLORS = {
     "primary_dark": "#0B3A5B",
@@ -15,9 +11,6 @@ COLORS = {
     "gouvernance": "#1565C0",
     "prioritaires": "#2E7D32",
     "supervision": "#EF6C00",
-    "success": "#4CAF50",
-    "warning": "#FFA726",
-    "danger": "#D32F2F",
     "text_primary": "#1F2937",
     "text_secondary": "#64748B",
     "border": "#E2E8F0",
@@ -29,7 +22,7 @@ st.markdown(f"""
 <style>
     * {{ font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
     .stApp {{ background-color: {COLORS['background']}; }}
-    .kpi-card {{ background: {COLORS['white']}; border: 1px solid {COLORS['border']}; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 120px; }}
+    .kpi-card {{ background: {COLORS['white']}; border: 1px solid {COLORS['border']}; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
     .kpi-value {{ font-size: 36px; font-weight: 700; color: {COLORS['primary_dark']}; margin: 8px 0; }}
     .kpi-label {{ font-size: 12px; text-transform: uppercase; color: {COLORS['text_secondary']}; font-weight: 500; }}
     .section-card {{ background: {COLORS['white']}; border: 1px solid {COLORS['border']}; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
@@ -38,11 +31,9 @@ st.markdown(f"""
     .metric-value-small {{ font-size: 24px; font-weight: 700; color: {COLORS['primary_dark']}; }}
     .metric-label-small {{ font-size: 11px; color: {COLORS['text_secondary']}; margin-top: 4px; text-transform: uppercase; }}
     .progress-bar {{ width: 100%; height: 6px; background: {COLORS['border']}; border-radius: 3px; overflow: hidden; margin: 12px 0; }}
-    .progress-fill {{ height: 100%; border-radius: 3px; transition: width 0.5s ease; }}
+    .progress-fill {{ height: 100%; border-radius: 3px; }}
     .badge {{ display: inline-block; font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 12px; margin-top: 12px; }}
     .badge-good {{ background: #F0FDF4; color: #166534; }}
-    .badge-warning {{ background: #FEF3C7; color: #92400E; }}
-    .badge-danger {{ background: #FEE2E2; color: #991B1B; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,9 +55,14 @@ def prepare_data(df):
 
 def separate_sections(df):
     col_n = 'N°' if 'N°' in df.columns else df.columns[0]
-    df_a = df[df[col_n].astype(str).str.strip().apply(lambda x: x.isdigit() and 1 <= int(x) <= 10)]
-    df_b = df[df[col_n].astype(str).str.contains('B', na=False)]
-    df_c = df[df[col_n].astype(str).str.contains('C', na=False)]
+    try:
+        df_a = df[df[col_n].astype(str).str.strip().apply(lambda x: str(x).isdigit() and 1 <= int(x) <= 10)]
+        df_b = df[df[col_n].astype(str).str.contains('B', na=False)]
+        df_c = df[df[col_n].astype(str).str.contains('C', na=False)]
+    except:
+        df_a = df.iloc[0:1]
+        df_b = df.iloc[1:2]
+        df_c = df.iloc[2:3]
     return df_a, df_b, df_c
 
 def calculate_metrics(df_section, mois):
@@ -123,6 +119,9 @@ try:
     df, mois = prepare_data(df)
     df_a, df_b, df_c = separate_sections(df)
     
+    # DEBUG : Afficher combien d'éléments dans chaque section
+    st.write(f"DEBUG: A={len(df_a)}, B={len(df_b)}, C={len(df_c)}")
+    
     # KPI GLOBAUX
     total_obj = len(df)
     total_real = len(df[df['Total'] > 0])
@@ -148,41 +147,62 @@ try:
     
     col1, col2, col3 = st.columns(3, gap="medium")
     
-    def render_section(col, df_section, title, color):
-        with col:
-            if len(df_section) > 0:
-                metrics = calculate_metrics(df_section, mois)
-                status, status_cls = get_performance_status(metrics['taux'])
-                mois_vals = [df_section[m].sum() for m in mois]
-                
-                st.markdown(f"""
-                <div class='section-card'>
-                    <div style='background: linear-gradient(135deg, {color} 0%, {color} 100%); color: white; padding: 12px 16px; margin: -24px -24px 20px -24px; border-radius: 12px 12px 0 0; font-size: 16px; font-weight: 700;'>{title}</div>
-                    <div class='metric-row'>
-                        <div class='metric-item'><div class='metric-value-small'>{metrics['objectifs']}</div><div class='metric-label-small'>Objectifs</div></div>
-                        <div class='metric-item'><div class='metric-value-small'>{metrics['realises']}</div><div class='metric-label-small'>Réalisés</div></div>
-                        <div class='metric-item'><div class='metric-value-small'>{metrics['taux']:.0f}%</div><div class='metric-label-small'>Taux</div></div>
-                        <div class='metric-item'><div class='metric-value-small'>{metrics['actions']}</div><div class='metric-label-small'>Actions</div></div>
-                    </div>
-                    <div class='progress-bar'><div class='progress-fill' style='width: {metrics['taux']}%; background: {color};'></div></div>
-                    <div class='badge badge-good' style='background: #F0F9FF; color: {color}; border: 1px solid rgba(102, 126, 234, 0.2);'>● {status}</div>
+    # SECTION A
+    with col1:
+        if len(df_a) > 0:
+            metrics_a = calculate_metrics(df_a, mois)
+            status_a, status_cls_a = get_performance_status(metrics_a['taux'])
+            st.markdown(f"""
+            <div class='section-card'>
+                <div style='background: linear-gradient(135deg, {COLORS['gouvernance']} 0%, {COLORS['gouvernance']} 100%); color: white; padding: 12px 16px; margin: -24px -24px 20px -24px; border-radius: 12px 12px 0 0; font-size: 16px; font-weight: 700;'>A. GOUVERNANCE</div>
+                <div class='metric-row'>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_a['objectifs']}</div><div class='metric-label-small'>Objectifs</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_a['realises']}</div><div class='metric-label-small'>Réalisés</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_a['taux']:.0f}%</div><div class='metric-label-small'>Taux</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_a['actions']}</div><div class='metric-label-small'>Actions</div></div>
                 </div>
-                """, unsafe_allow_html=True)
-                
-                fig_spark = go.Figure()
-                fig_spark.add_trace(go.Scatter(
-                    x=mois, y=mois_vals, mode='lines', line=dict(color=color, width=2),
-                    fill='tozeroy', fillcolor=f"rgba(102, 126, 234, 0.2)",
-                    hovertemplate='<b>%{x}</b><br>Réalisations: %{y}<extra></extra>', showlegend=False
-                ))
-                fig_spark.update_layout(height=60, margin=dict(l=0, r=0, t=0, b=0), plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)", xaxis=dict(showgrid=False, showline=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, showline=False, zeroline=False, showticklabels=False))
-                st.plotly_chart(fig_spark, use_container_width=True, config={'displayModeBar': False})
+                <div class='progress-bar'><div class='progress-fill' style='width: {metrics_a['taux']}%; background: {COLORS['gouvernance']};'></div></div>
+                <div class='badge badge-good' style='background: #F0F9FF; color: {COLORS['gouvernance']};'>● {status_a}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    render_section(col1, df_a, "A. GOUVERNANCE", COLORS['gouvernance'])
-    render_section(col2, df_b, "B. ACTIVITÉS PRIORITAIRES", COLORS['prioritaires'])
-    render_section(col3, df_c, "C. AXE DE SUPERVISION", COLORS['supervision'])
+    # SECTION B
+    with col2:
+        if len(df_b) > 0:
+            metrics_b = calculate_metrics(df_b, mois)
+            status_b, status_cls_b = get_performance_status(metrics_b['taux'])
+            st.markdown(f"""
+            <div class='section-card'>
+                <div style='background: linear-gradient(135deg, {COLORS['prioritaires']} 0%, {COLORS['prioritaires']} 100%); color: white; padding: 12px 16px; margin: -24px -24px 20px -24px; border-radius: 12px 12px 0 0; font-size: 16px; font-weight: 700;'>B. ACTIVITÉS PRIORITAIRES</div>
+                <div class='metric-row'>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_b['objectifs']}</div><div class='metric-label-small'>Objectifs</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_b['realises']}</div><div class='metric-label-small'>Réalisés</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_b['taux']:.0f}%</div><div class='metric-label-small'>Taux</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_b['actions']}</div><div class='metric-label-small'>Actions</div></div>
+                </div>
+                <div class='progress-bar'><div class='progress-fill' style='width: {metrics_b['taux']}%; background: {COLORS['prioritaires']};'></div></div>
+                <div class='badge badge-good' style='background: #F0F9FF; color: {COLORS['prioritaires']};'>● {status_b}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # SECTION C
+    with col3:
+        if len(df_c) > 0:
+            metrics_c = calculate_metrics(df_c, mois)
+            status_c, status_cls_c = get_performance_status(metrics_c['taux'])
+            st.markdown(f"""
+            <div class='section-card'>
+                <div style='background: linear-gradient(135deg, {COLORS['supervision']} 0%, {COLORS['supervision']} 100%); color: white; padding: 12px 16px; margin: -24px -24px 20px -24px; border-radius: 12px 12px 0 0; font-size: 16px; font-weight: 700;'>C. AXE DE SUPERVISION</div>
+                <div class='metric-row'>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_c['objectifs']}</div><div class='metric-label-small'>Objectifs</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_c['realises']}</div><div class='metric-label-small'>Réalisés</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_c['taux']:.0f}%</div><div class='metric-label-small'>Taux</div></div>
+                    <div class='metric-item'><div class='metric-value-small'>{metrics_c['actions']}</div><div class='metric-label-small'>Actions</div></div>
+                </div>
+                <div class='progress-bar'><div class='progress-fill' style='width: {metrics_c['taux']}%; background: {COLORS['supervision']};'></div></div>
+                <div class='badge badge-good' style='background: #F0F9FF; color: {COLORS['supervision']};'>● {status_c}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # GRAPHIQUES
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
@@ -191,9 +211,9 @@ try:
     col1, col2 = st.columns([1.5, 1], gap="medium")
     
     with col1:
-        mois_a = [df_a[m].sum() for m in mois]
-        mois_b = [df_b[m].sum() for m in mois]
-        mois_c = [df_c[m].sum() for m in mois]
+        mois_a = [df_a[m].sum() for m in mois] if len(df_a) > 0 else [0]*6
+        mois_b = [df_b[m].sum() for m in mois] if len(df_b) > 0 else [0]*6
+        mois_c = [df_c[m].sum() for m in mois] if len(df_c) > 0 else [0]*6
         
         fig_ev = go.Figure()
         fig_ev.add_trace(go.Scatter(x=mois, y=mois_a, mode='lines+markers', name='Gouvernance', line=dict(color=COLORS['gouvernance'], width=3), marker=dict(size=8)))
@@ -204,9 +224,9 @@ try:
         st.plotly_chart(fig_ev, use_container_width=True)
     
     with col2:
-        metrics_a = calculate_metrics(df_a, mois)
-        metrics_b = calculate_metrics(df_b, mois)
-        metrics_c = calculate_metrics(df_c, mois)
+        metrics_a = calculate_metrics(df_a, mois) if len(df_a) > 0 else {'taux': 0}
+        metrics_b = calculate_metrics(df_b, mois) if len(df_b) > 0 else {'taux': 0}
+        metrics_c = calculate_metrics(df_c, mois) if len(df_c) > 0 else {'taux': 0}
         
         fig_perf = go.Figure()
         fig_perf.add_trace(go.Bar(y=['Gouvernance', 'Prioritaires', 'Supervision'],
@@ -228,16 +248,22 @@ try:
         if len(df_a) > 0:
             col_liv = 'Livrable' if 'Livrable' in df_a.columns else df_a.columns[1]
             st.dataframe(df_a[[col_liv] + mois + ['Total']], use_container_width=True, hide_index=True)
+        else:
+            st.info("Aucune donnée pour Gouvernance")
     
     with tab2:
         if len(df_b) > 0:
             col_liv = 'Livrable' if 'Livrable' in df_b.columns else df_b.columns[1]
             st.dataframe(df_b[[col_liv] + mois + ['Total']], use_container_width=True, hide_index=True)
+        else:
+            st.info("Aucune donnée pour Prioritaires")
     
     with tab3:
         if len(df_c) > 0:
             col_liv = 'Livrable' if 'Livrable' in df_c.columns else df_c.columns[1]
             st.dataframe(df_c[[col_liv] + mois + ['Total']], use_container_width=True, hide_index=True)
+        else:
+            st.info("Aucune donnée pour Supervision")
     
     # FOOTER
     st.markdown("<div style='margin-top: 50px; padding-top: 20px; border-top: 1px solid #E2E8F0;'></div>", unsafe_allow_html=True)
@@ -245,3 +271,5 @@ try:
 
 except Exception as e:
     st.error(f"❌ Erreur : {str(e)}")
+    import traceback
+    st.write(traceback.format_exc())
