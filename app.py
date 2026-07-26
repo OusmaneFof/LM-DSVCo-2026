@@ -274,5 +274,19 @@ try:
     st.markdown("""
     <div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px;">
         <p>Dashboard DSVCo S1 2026 • Mise à jour en temps réel</p>
-        <p>Dernière mise à jour: """ + datetime.now().strftime("%d/%m/%Y à %H:%M:%S") + """</p>
-    </div>
+        # À la place de:
+st.markdown("""
+<div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px;">
+    <p>Dashboard DSVCo S1 2026 • Mise à jour en temps réel</p>
+    <p>Dernière mise à jour: """ + datetime.now().strftime("%d/%m/%Y à %H:%M:%S") + """</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Remplacer par:
+st.markdown(
+    f"""<div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px;">
+    <p>Dashboard DSVCo S1 2026 • Mise à jour en temps réel</p>
+    <p>Dernière mise à jour: {datetime.now().strftime("%d/%m/%Y à %H:%M:%S")}</p>
+</div>""",
+    unsafe_allow_html=True
+)
