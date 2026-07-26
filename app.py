@@ -231,4 +231,19 @@ try:
     with col1:
         st.metric("🎯 Objectifs Totaux", total_global_objectifs)
     with col2:
-        st.metric("✅ Realises Totaux",
+        st.metric("✅ Realises Totaux", total_global_realises)
+    with col3:
+        st.metric("📈 Taux Global", f"{taux_global:.1f}%")
+    with col4:
+        st.metric("🔄 Total Actions", total_global_actions)
+    
+    # Footer
+    st.divider()
+    st.markdown(f"<p style='text-align: center; color: #999; font-size: 11px;'>Dashboard DSVCo S1 2026 - Donnees en temps reel<br>Derniere mise a jour: {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}</p>", unsafe_allow_html=True)
+    
+    # Auto-refresh
+    time.sleep(30)
+    st.rerun()
+
+except Exception as e:
+    st.error(f"Erreur: {str(e)}")
