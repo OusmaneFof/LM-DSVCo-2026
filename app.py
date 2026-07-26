@@ -9,26 +9,14 @@ st.set_page_config(page_title="DSVCo Dashboard S1 2026", layout="wide", initial_
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-    h1 { text-align: center; color: #1a1a2e; font-size: 48px; margin-bottom: 5px; }
-    h2 { text-align: center; color: white; font-size: 26px; margin-top: 40px; margin-bottom: 20px; padding: 15px; border-radius: 10px; }
+    h1 { text-align: center; color: #1a1a2e; font-size: 48px; }
+    h2 { text-align: center; color: white; font-size: 26px; padding: 15px; border-radius: 10px; margin-top: 40px; }
     .section-a { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     .section-b { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     .section-c { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-    .metric-card {
-        background: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        text-align: center;
-        min-width: 130px;
-    }
-    .metric-value { font-size: 36px; font-weight: bold; color: #667eea; }
-    .metric-label { font-size: 12px; color: #666; text-transform: uppercase; margin-top: 5px; }
-    .divider-thick { border-top: 3px solid #667eea; margin: 40px 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# TITRE PRINCIPAL
 st.markdown("<h1>📊 TABLEAU DE BORD DSVCo S1 2026</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #667eea; font-size: 18px; font-weight: 600;'>Direction de la Sante de la Ville de Conakry (DSVCo)<br>Suivi EN TEMPS REEL - Janvier a Juin 2026</p>", unsafe_allow_html=True)
 
@@ -39,7 +27,6 @@ try:
     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
     
     df = pd.read_csv(csv_url)
-    
     st.success("✅ Connecte a Google Sheets - EN TEMPS REEL")
     
     mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
@@ -50,198 +37,104 @@ try:
     
     df['Total'] = df[mois].sum(axis=1)
     
-    # ===== SEPARATOR LES SECTIONS =====
+    # Separator les sections
     col_n = 'N°' if 'N°' in df.columns else df.columns[0]
-    
     df_a = df[df[col_n].astype(str).str.strip().apply(lambda x: x.isdigit() and 1 <= int(x) <= 10)]
     df_b = df[df[col_n].astype(str).str.contains('B', na=False)]
     df_c = df[df[col_n].astype(str).str.contains('C', na=False)]
     
-    # Fonction pour créer une section
-    def create_section(section_df, title, color_class, color_hex):
-        st.markdown(f"<h2 class='{color_class}'>{title}</h2>", unsafe_allow_html=True)
-        
-        # METRIQUES
-        total_livres = len(section_df[section_df['Total'] > 0])
-        total_objectifs = len(section_df)
-        taux = (total_livres / total_objectifs * 100) if total_objectifs > 0 else 0
-        total_real = int(section_df[mois].sum().sum())
+    # SECTION A
+    if len(df_a) > 0:
+        st.markdown("<h2 class='section-a'>A. 🎯 ACTIVITES PRIORITAIRES</h2>", unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
+        col1.metric("🎯 Objectifs", len(df_a))
+        col2.metric("✅ Realises", len(df_a[df_a['Total'] > 0]))
+        col3.metric("📈 Taux %", f"{len(df_a[df_a['Total'] > 0])/len(df_a)*100:.1f}%")
+        col4.metric("🔄 Actions", int(df_a[mois].sum().sum()))
         
-        with col1:
-            st.metric("🎯 Objectifs", total_objectifs)
-        with col2:
-            st.metric("✅ Realises", total_livres)
-        with col3:
-            st.metric("📈 Taux %", f"{taux:.1f}%")
-        with col4:
-            st.metric("🔄 Actions", total_real)
-        
-        # GRAPHIQUE COURBES
         col1, col2 = st.columns(2)
         
         with col1:
-            mois_values = [section_df[m].sum() for m in mois]
-            mois_cumul = []
-            cumul = 0
-            for val in mois_values:
-                cumul += val
-                mois_cumul.append(cumul)
-            
-            fig_curve = go.Figure()
-            
-            fig_curve.add_trace(go.Scatter(
-                x=mois,
-                y=mois_values,
-                mode='lines+markers',
-                name='Realisations Mensuelles',
-                line=dict(color=color_hex, width=4),
-                marker=dict(size=12, color=color_hex),
-                fill='tozeroy',
-                fillcolor=f'rgba({color_hex[1:3]}, {color_hex[3:5]}, {color_hex[5:7]}, 0.2)',
-                hovertemplate='<b>%{x}</b><br>Realisations: %{y}<extra></extra>'
-            ))
-            
-            fig_curve.add_trace(go.Scatter(
-                x=mois,
-                y=mois_cumul,
-                mode='lines+markers',
-                name='Cumul',
-                line=dict(color='#f5576c', width=3, dash='dash'),
-                marker=dict(size=8, color='#f5576c'),
-                hovertemplate='<b>%{x}</b><br>Cumul: %{y}<extra></extra>'
-            ))
-            
-            fig_curve.update_layout(
-                title="<b>Evolution Mensuelle</b>",
-                xaxis_title="Mois",
-                yaxis_title="Realisations",
-                height=400,
-                template='plotly_white',
-                hovermode='x unified',
-                font=dict(size=11),
-                plot_bgcolor='rgba(240,240,240,0.5)'
-            )
-            
-            st.plotly_chart(fig_curve, use_container_width=True)
+            mois_vals = [df_a[m].sum() for m in mois]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#667eea', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)'))
+            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
+            st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=taux,
-                title={'text': "<b>Taux Realisation</b>"},
-                gauge={
-                    'axis': {'range': [0, 100]},
-                    'bar': {'color': color_hex},
-                    'steps': [
-                        {'range': [0, 33], 'color': "#ffcccc"},
-                        {'range': [33, 66], 'color': "#ffffcc"},
-                        {'range': [66, 100], 'color': "#ccffcc"}
-                    ]
-                }
-            ))
-            fig_gauge.update_layout(height=400, font=dict(size=12))
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            taux = len(df_a[df_a['Total'] > 0])/len(df_a)*100 if len(df_a) > 0 else 0
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#667eea"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
         
-        # HEATMAP
-        st.markdown("#### 🔥 Progression Detaillee par Livrable")
-        
-        livrable_col = 'Livrable' if 'Livrable' in section_df.columns else section_df.columns[1]
-        df_heatmap = section_df[[livrable_col] + mois].head(10)
-        
-        fig_heatmap = go.Figure(data=go.Heatmap(
-            z=df_heatmap[mois].values,
-            x=mois,
-            y=df_heatmap[livrable_col].values,
-            colorscale='RdYlGn',
-            colorbar=dict(title="Realise"),
-            hovertemplate='<b>%{y}</b><br>%{x}: %{z}<extra></extra>'
-        ))
-        
-        fig_heatmap.update_layout(
-            title="<b>Heatmap - Realisation par Livrable</b>",
-            xaxis_title="Mois",
-            yaxis_title="Livrables",
-            height=350,
-            font=dict(size=10)
-        )
-        
-        st.plotly_chart(fig_heatmap, use_container_width=True)
-        
-        # TABLEAU SYNTHESE
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### 📊 Top Livrables")
-            top_livs = section_df.nlargest(5, 'Total')
-            
-            fig_bar = go.Figure()
-            fig_bar.add_trace(go.Bar(
-                x=top_livs['Total'],
-                y=top_livs[livrable_col],
-                orientation='h',
-                marker=dict(color=color_hex),
-                text=top_livs['Total'],
-                textposition='auto',
-                hovertemplate='<b>%{y}</b><br>Realise: %{x}<extra></extra>'
-            ))
-            fig_bar.update_layout(
-                title="<b>Top 5 Livrables</b>",
-                xaxis_title="Nombre",
-                height=350,
-                template='plotly_white',
-                showlegend=False
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-        
-        with col2:
-            st.markdown("#### 📋 Resume Mensuel")
-            resume = pd.DataFrame({
-                'Mois': mois,
-                'Realise': mois_values,
-                'Cumul': mois_cumul
-            })
-            st.dataframe(resume, use_container_width=True, hide_index=True)
-        
-        st.markdown("<div class='divider-thick'></div>", unsafe_allow_html=True)
+        st.divider()
     
-    # ===== SECTION A : PRIORITAIRES =====
-    if len(df_a) > 0:
-        create_section(df_a, "A. 🎯 ACTIVITES PRIORITAIRES", "section-a", "#667eea")
-    
-    # ===== SECTION B : GOUVERNANCE =====
+    # SECTION B
     if len(df_b) > 0:
-        create_section(df_b, "B. 📋 ACTIVITES DE GOUVERNANCE", "section-b", "#f5576c")
+        st.markdown("<h2 class='section-b'>B. 📋 ACTIVITES DE GOUVERNANCE</h2>", unsafe_allow_html=True)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("🎯 Objectifs", len(df_b))
+        col2.metric("✅ Realises", len(df_b[df_b['Total'] > 0]))
+        col3.metric("📈 Taux %", f"{len(df_b[df_b['Total'] > 0])/len(df_b)*100:.1f}%")
+        col4.metric("🔄 Actions", int(df_b[mois].sum().sum()))
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            mois_vals = [df_b[m].sum() for m in mois]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#f5576c', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(245, 87, 108, 0.2)'))
+            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            taux = len(df_b[df_b['Total'] > 0])/len(df_b)*100 if len(df_b) > 0 else 0
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#f5576c"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
     
-    # ===== SECTION C : SUPERVISEUR =====
+    # SECTION C
     if len(df_c) > 0:
-        create_section(df_c, "C. 👁️ AXES SUPERVISEUR", "section-c", "#00f2fe")
+        st.markdown("<h2 class='section-c'>C. 👁️ AXES SUPERVISEUR</h2>", unsafe_allow_html=True)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("🎯 Objectifs", len(df_c))
+        col2.metric("✅ Realises", len(df_c[df_c['Total'] > 0]))
+        col3.metric("📈 Taux %", f"{len(df_c[df_c['Total'] > 0])/len(df_c)*100:.1f}%")
+        col4.metric("🔄 Actions", int(df_c[mois].sum().sum()))
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            mois_vals = [df_c[m].sum() for m in mois]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#00f2fe', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(0, 242, 254, 0.2)'))
+            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            taux = len(df_c[df_c['Total'] > 0])/len(df_c)*100 if len(df_c) > 0 else 0
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#00f2fe"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
     
-    # SYNTHESE FINALE
-    st.markdown("<h2 style='text-align: center; color: #1a1a2e; margin-top: 50px;'>📊 SYNTHESE GLOBALE</h2>", unsafe_allow_html=True)
-    
+    # SYNTHESE
+    st.markdown("<h2 style='text-align: center; color: #1a1a2e;'>📊 SYNTHESE GLOBALE</h2>", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🎯 Total Objectifs", len(df))
+    col2.metric("✅ Total Realises", len(df[df['Total'] > 0]))
+    col3.metric("📈 Taux Global", f"{len(df[df['Total'] > 0])/len(df)*100:.1f}%")
+    col4.metric("🔄 Total Actions", int(df[mois].sum().sum()))
     
-    total_global_objectifs = len(df)
-    total_global_realises = len(df[df['Total'] > 0])
-    taux_global = (total_global_realises / total_global_objectifs * 100) if total_global_objectifs > 0 else 0
-    total_global_actions = int(df[mois].sum().sum())
-    
-    with col1:
-        st.metric("🎯 Objectifs Totaux", total_global_objectifs)
-    with col2:
-        st.metric("✅ Realises Totaux", total_global_realises)
-    with col3:
-        st.metric("📈 Taux Global", f"{taux_global:.1f}%")
-    with col4:
-        st.metric("🔄 Total Actions", total_global_actions)
-    
-    # Footer
     st.divider()
-    st.markdown(f"<p style='text-align: center; color: #999; font-size: 11px;'>Dashboard DSVCo S1 2026 - Donnees en temps reel<br>Derniere mise a jour: {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: #999; font-size: 11px;'>Derniere mise a jour: {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}</p>", unsafe_allow_html=True)
     
-    # Auto-refresh
     time.sleep(30)
     st.rerun()
 
