@@ -35,8 +35,7 @@ st.markdown("""
 
 # TITRE
 st.markdown("<h1>📊 TABLEAU DE BORD DSVCo S1 2026</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Direction de la Sante et de la Vaccination Communautaire<br>Suivi EN TEMPS REEL - Janvier a Juin 2026</p>", unsafe_allow_html=True)
-
+st.markdown("<p class='subtitle'>Direction de la Sante de la Ville de Conakry (DSVCo)<br>Suivi EN TEMPS REEL - Janvier a Juin 2026</p>", unsafe_allow_html=True)
 sheet_url = "https://docs.google.com/spreadsheets/d/1BVEEDaDQZ9cauGKau03BFc7rvmUoOX8aiUDOHQTqyV0/edit?usp=sharing"
 
 try:
