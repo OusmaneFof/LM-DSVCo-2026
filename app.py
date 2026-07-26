@@ -21,14 +21,15 @@ st.markdown("""
     .metric-label { font-size: 16px; opacity: 0.95; text-transform: uppercase; }
     h1 { text-align: center; color: #333; font-size: 42px; }
     h2 { text-align: center; color: #667eea; font-size: 28px; margin-top: 40px; }
+    .stApp { background: linear-gradient(to bottom, #f8f9fa, #ffffff); }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>TABLEAU DE BORD DSVCo S1 2026</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 18px; color: #666;'>Direction de la Sante et de la Vaccination Communautaire<br><span style='color: #667eea; font-weight: bold;'>Suivi EN TEMPS REEL - Janvier a Juin 2026</span></p>", unsafe_allow_html=True)
 
-# LIEN GOOGLE SHEET
-sheet_url = "https://docs.google.com/spreadsheets/d/1ShEd0ZsaqX81Qz7iit/edit?usp=sharing"
+# LIEN GOOGLE SHEET CORRECT
+sheet_url = "https://docs.google.com/spreadsheets/d/1BVEEDaDQZ9cauGKau03BFc7rvmUoOX8aiUDOHQTqyV0/edit?usp=sharing"
 
 try:
     sheet_id = sheet_url.split('/d/')[1].split('/')[0]
@@ -38,7 +39,7 @@ try:
     
     st.success("Connecte a Google Sheets - EN TEMPS REEL")
     
-    # Nettoyer les colonnes (gérer différents noms possibles)
+    # Nettoyer les donnees
     mois = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Juin']
     
     for mois_col in mois:
@@ -104,14 +105,16 @@ try:
             y=mois_values,
             marker=dict(color=mois_values, colorscale='Viridis', line=dict(color='darkblue', width=2)),
             text=mois_values,
-            textposition='auto'
+            textposition='auto',
+            hovertemplate='<b>%{x}</b><br>Realisations: %{y}<extra></extra>'
         ))
         fig1.update_layout(
             title="<b>Progression Mensuelle</b>",
             xaxis_title="Mois",
             yaxis_title="Realisations",
             height=450,
-            template='plotly_white'
+            template='plotly_white',
+            font=dict(size=12)
         )
         st.plotly_chart(fig1, use_container_width=True)
     
@@ -126,13 +129,15 @@ try:
             orientation='h',
             marker=dict(color=top_livs['Total'], colorscale='Reds', line=dict(color='darkred', width=2)),
             text=top_livs['Total'],
-            textposition='auto'
+            textposition='auto',
+            hovertemplate='<b>%{y}</b><br>Realise: %{x}<extra></extra>'
         ))
         fig2.update_layout(
             title="<b>Top 10 Livrables</b>",
             xaxis_title="Realisations",
             height=450,
-            template='plotly_white'
+            template='plotly_white',
+            font=dict(size=12)
         )
         st.plotly_chart(fig2, use_container_width=True)
     
@@ -154,26 +159,64 @@ try:
                 ]
             }
         ))
-        fig3.update_layout(height=450)
+        fig3.update_layout(height=450, font=dict(size=12))
         st.plotly_chart(fig3, use_container_width=True)
     
     with col2:
-        st.markdown("<b>Radar par Section</b>")
-        st.info("Graphique radar en cours de construction...")
+        sections = []
+        scores = []
+        
+        if 'N' in df.columns or df.columns[0] in ['N', 'N°']:
+            col_n = 'N' if 'N' in df.columns else df.columns[0]
+            
+            df_a = df[df[col_n].astype(str).str.strip().apply(lambda x: x.isdigit() and 1 <= int(x) <= 10)]
+            if len(df_a) > 0:
+                sections.append("A. Prioritaires")
+                scores.append((len(df_a[df_a['Total'] > 0]) / len(df_a) * 100))
+            
+            df_b = df[df[col_n].astype(str).str.contains('B', na=False)]
+            if len(df_b) > 0:
+                sections.append("B. Gouvernance")
+                scores.append((len(df_b[df_b['Total'] > 0]) / len(df_b) * 100))
+            
+            df_c = df[df[col_n].astype(str).str.contains('C', na=False)]
+            if len(df_c) > 0:
+                sections.append("C. Superviseur")
+                scores.append((len(df_c[df_c['Total'] > 0]) / len(df_c) * 100))
+        
+        if sections:
+            fig4 = go.Figure()
+            fig4.add_trace(go.Scatterpolar(
+                r=scores,
+                theta=sections,
+                fill='toself',
+                name='Realisation (%)',
+                line=dict(color='#667eea', width=2),
+                fillcolor='rgba(102, 126, 234, 0.3)',
+                hovertemplate='<b>%{theta}</b><br>%{r:.1f}%<extra></extra>'
+            ))
+            fig4.update_layout(
+                title="<b>Realisation par Section</b>",
+                polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+                height=450,
+                template='plotly_white',
+                font=dict(size=12)
+            )
+            st.plotly_chart(fig4, use_container_width=True)
     
-    # TABLEAU
+    # TABLEAU DETAIL
     st.divider()
     st.markdown("<h2>DONNEES DETAILLEES</h2>", unsafe_allow_html=True)
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
     
     # Footer
     st.divider()
-    st.markdown(f"<p style='text-align: center; color: #999; font-size: 12px;'>Derniere mise a jour: {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: #999; font-size: 12px;'>Dashboard DSVCo S1 2026 - Suivi en temps reel<br>Derniere mise a jour: {datetime.now().strftime('%d/%m/%Y a %H:%M:%S')}</p>", unsafe_allow_html=True)
     
     # Auto-refresh
     time.sleep(30)
     st.rerun()
 
 except Exception as e:
-    st.error(f"Erreur: {str(e)}")
-    st.info("Verifiez que le lien Google Sheet est complet et le sheet partage publiquement")
+    st.error(f"Erreur de chargement: {str(e)}")
+    st.info("Le Google Sheet est peut-etre inaccessible. Verifiez qu'il est partage publiquement.")
