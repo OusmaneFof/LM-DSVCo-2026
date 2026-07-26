@@ -39,90 +39,54 @@ try:
     
     # Separator les sections
     col_n = 'N°' if 'N°' in df.columns else df.columns[0]
+    col_liv = 'Livrable' if 'Livrable' in df.columns else df.columns[1]
+    
     df_a = df[df[col_n].astype(str).str.strip().apply(lambda x: x.isdigit() and 1 <= int(x) <= 10)]
     df_b = df[df[col_n].astype(str).str.contains('B', na=False)]
     df_c = df[df[col_n].astype(str).str.contains('C', na=False)]
     
-    # SECTION A
-    if len(df_a) > 0:
-        st.markdown("<h2 class='section-a'>A. 🎯 ACTIVITES PRIORITAIRES</h2>", unsafe_allow_html=True)
+    def show_section(df_section, title, color_hex, color_rgba):
+        st.markdown(f"<h2 style='background: linear-gradient(135deg, {color_hex} 0%, {color_hex} 100%); text-align: center; color: white; padding: 15px; border-radius: 10px;'>{title}</h2>", unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🎯 Objectifs", len(df_a))
-        col2.metric("✅ Realises", len(df_a[df_a['Total'] > 0]))
-        col3.metric("📈 Taux %", f"{len(df_a[df_a['Total'] > 0])/len(df_a)*100:.1f}%")
-        col4.metric("🔄 Actions", int(df_a[mois].sum().sum()))
+        col1.metric("🎯 Objectifs", len(df_section))
+        col2.metric("✅ Realises", len(df_section[df_section['Total'] > 0]))
+        col3.metric("📈 Taux %", f"{len(df_section[df_section['Total'] > 0])/len(df_section)*100:.1f}%" if len(df_section) > 0 else "0%")
+        col4.metric("🔄 Actions", int(df_section[mois].sum().sum()))
         
         col1, col2 = st.columns(2)
         
         with col1:
-            mois_vals = [df_a[m].sum() for m in mois]
+            mois_vals = [df_section[m].sum() for m in mois]
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#667eea', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)'))
-            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
+            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color=color_hex, width=4), marker=dict(size=10), fill='tozeroy', fillcolor=color_rgba))
+            fig.update_layout(title="<b>Evolution Mensuelle</b>", height=400, template='plotly_white', hovermode='x unified')
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            taux = len(df_a[df_a['Total'] > 0])/len(df_a)*100 if len(df_a) > 0 else 0
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#667eea"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
-            fig.update_layout(height=400)
+            taux = len(df_section[df_section['Total'] > 0])/len(df_section)*100 if len(df_section) > 0 else 0
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': color_hex}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
+            fig.update_layout(title="<b>Taux Realisation</b>", height=400)
             st.plotly_chart(fig, use_container_width=True)
         
+        # TABLEAU DES ACTIVITES
+        st.markdown("#### 📋 Detail des Activites")
+        df_display = df_section[[col_n, col_liv] + mois + ['Total']].copy()
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        
         st.divider()
+    
+    # SECTION A
+    if len(df_a) > 0:
+        show_section(df_a, "A. 🎯 ACTIVITES PRIORITAIRES", "#667eea", "rgba(102, 126, 234, 0.2)")
     
     # SECTION B
     if len(df_b) > 0:
-        st.markdown("<h2 class='section-b'>B. 📋 ACTIVITES DE GOUVERNANCE</h2>", unsafe_allow_html=True)
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🎯 Objectifs", len(df_b))
-        col2.metric("✅ Realises", len(df_b[df_b['Total'] > 0]))
-        col3.metric("📈 Taux %", f"{len(df_b[df_b['Total'] > 0])/len(df_b)*100:.1f}%")
-        col4.metric("🔄 Actions", int(df_b[mois].sum().sum()))
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            mois_vals = [df_b[m].sum() for m in mois]
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#f5576c', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(245, 87, 108, 0.2)'))
-            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            taux = len(df_b[df_b['Total'] > 0])/len(df_b)*100 if len(df_b) > 0 else 0
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#f5576c"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        st.divider()
+        show_section(df_b, "B. 📋 ACTIVITES DE GOUVERNANCE", "#f5576c", "rgba(245, 87, 108, 0.2)")
     
     # SECTION C
     if len(df_c) > 0:
-        st.markdown("<h2 class='section-c'>C. 👁️ AXES SUPERVISEUR</h2>", unsafe_allow_html=True)
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🎯 Objectifs", len(df_c))
-        col2.metric("✅ Realises", len(df_c[df_c['Total'] > 0]))
-        col3.metric("📈 Taux %", f"{len(df_c[df_c['Total'] > 0])/len(df_c)*100:.1f}%")
-        col4.metric("🔄 Actions", int(df_c[mois].sum().sum()))
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            mois_vals = [df_c[m].sum() for m in mois]
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=mois, y=mois_vals, mode='lines+markers', name='Realise', line=dict(color='#00f2fe', width=4), marker=dict(size=10), fill='tozeroy', fillcolor='rgba(0, 242, 254, 0.2)'))
-            fig.update_layout(title="Evolution Mensuelle", height=400, template='plotly_white')
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            taux = len(df_c[df_c['Total'] > 0])/len(df_c)*100 if len(df_c) > 0 else 0
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=taux, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#00f2fe"}, 'steps': [{'range': [0, 33], 'color': "#ffcccc"}, {'range': [33, 66], 'color': "#ffffcc"}, {'range': [66, 100], 'color': "#ccffcc"}]}))
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        st.divider()
+        show_section(df_c, "C. 👁️ AXES SUPERVISEUR", "#00f2fe", "rgba(0, 242, 254, 0.2)")
     
     # SYNTHESE
     st.markdown("<h2 style='text-align: center; color: #1a1a2e;'>📊 SYNTHESE GLOBALE</h2>", unsafe_allow_html=True)
@@ -140,3 +104,4 @@ try:
 
 except Exception as e:
     st.error(f"Erreur: {str(e)}")
+    st.info("Verifiez le Google Sheet")
