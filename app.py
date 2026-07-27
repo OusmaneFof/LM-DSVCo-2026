@@ -248,3 +248,112 @@ def main():
                 y=['Gouvernance', 'Supervision', 'Prioritaires'],
                 x=[m_a['taux'], m_b['taux'], m_c['taux']],
                 orientation='h',
+                marker=dict(color=['#1565C0', '#EF6C00', '#2E7D32']),
+                text=[f"{m_a['taux']:.0f}%", f"{m_b['taux']:.0f}%", f"{m_c['taux']:.0f}%"],
+                textposition='outside',
+                hovertemplate='<b>%{y}</b><br>Taux : %{x:.1f}%<extra></extra>',
+                showlegend=False
+            ))
+            
+            fig_comparison.update_layout(
+                title="Taux de réalisation par axe",
+                xaxis_title="Taux (%)",
+                xaxis=dict(range=[0, 110]),
+                height=300,
+                plot_bgcolor="rgba(245, 247, 250, 0.5)",
+                paper_bgcolor="white"
+            )
+            
+            st.plotly_chart(fig_comparison, use_container_width=True)
+        
+        # Répartition globale
+        with col2:
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=['Réalisés', 'En attente'],
+                values=[total_realises, total_non_realises],
+                marker=dict(colors=['#2E7D32', '#F57C00']),
+                hovertemplate='<b>%{label}</b><br>%{value} livrables<extra></extra>'
+            )])
+            
+            fig_pie.update_layout(
+                title="Répartition des livrables",
+                height=300,
+                paper_bgcolor="white"
+            )
+            
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
+        st.divider()
+        
+        # =====================================================================
+        # POINTS D'ATTENTION
+        # =====================================================================
+        
+        st.markdown("### ⚠️ Points d'attention")
+        
+        attention_items = detect_attention_items(df_a, df_b, df_c)
+        
+        if attention_items:
+            st.warning(f"**{len(attention_items)} point(s) d'attention détecté(s)**")
+            
+            for item in attention_items[:10]:
+                with st.container(border=True):
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"**{item['livrable']}**")
+                        st.caption(f"{item['section']} • {item['type']}")
+                    with col2:
+                        st.write("🔴 " + item['type'])
+        else:
+            st.success("Aucun point d'attention identifié.")
+        
+        st.divider()
+        
+        # =====================================================================
+        # DÉTAIL DES ACTIVITÉS
+        # =====================================================================
+        
+        st.markdown("### 📋 Détail des activités")
+        
+        tab_all, tab_a, tab_b, tab_c = st.tabs(["Toutes", "Gouvernance", "Supervision", "Prioritaires"])
+        
+        def render_table(df_section, section_name):
+            if len(df_section) > 0:
+                col_liv = 'Livrable' if 'Livrable' in df_section.columns else df_section.columns[1] if len(df_section.columns) > 1 else None
+                
+                if col_liv:
+                    display_cols = [col_liv] + mois + ['Total']
+                    display_cols = [c for c in display_cols if c in df_section.columns]
+                    
+                    df_display = df_section[display_cols].copy()
+                    df_display['Statut'] = df_display['Total'].apply(
+                        lambda x: '✅ Réalisé' if x > 0 else '⏳ En attente'
+                    )
+                    
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+                else:
+                    st.info(f"Aucune colonne 'Livrable' trouvée")
+            else:
+                st.info(f"Aucune donnée pour {section_name}")
+        
+        with tab_all:
+            render_table(df_valid, "Toutes les sections")
+        
+        with tab_a:
+            render_table(df_a, "Gouvernance")
+        
+        with tab_b:
+            render_table(df_b, "Supervision")
+        
+        with tab_c:
+            render_table(df_c, "Prioritaires")
+        
+        st.divider()
+        st.caption(f"Dashboard DSVCo • Lettre de mission S1 2026 • Données synchronisées en temps réel")
+    
+    except Exception as e:
+        st.error(f"Erreur : {str(e)}")
+        st.info("Vérifiez que le Google Sheet est accessible.")
+
+if __name__ == "__main__":
+    main()
